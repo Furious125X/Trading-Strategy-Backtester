@@ -10,3 +10,19 @@ class Candle :
     low: float
     close: float
     volume: float
+
+from enum import Enum
+
+class Direction(Enum):
+    LONG = "long"
+    SHORT = "short"
+
+@dataclass
+class Trade:
+    direction: Direction
+    entry_price: float
+    stop_loss: float
+    take_profit: float
+    entry_time: datetime
+    exit_time: datetime | None = None
+    result: str | None = None
