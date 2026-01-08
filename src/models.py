@@ -25,4 +25,6 @@ class Trade:
     take_profit: float
     entry_time: datetime
     exit_time: datetime | None = None
+    exit_price: float | None = None
     result: str | None = None
+
