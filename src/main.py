@@ -3,7 +3,6 @@ from simulator import simulate_trade
 from stats import basic_trade_stats, pnl_stats
 from strategy import SimpleBreakoutStrategy
 
-
 def main():
     candles = load_candles("data/xrp_15m.csv")
     strategy = SimpleBreakoutStrategy()
