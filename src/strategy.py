@@ -1,26 +1,53 @@
 from models import Trade, Direction
+from indicators import ema, rsi, atr
 
 
-class SimpleBreakoutStrategy:
-    def __init__(self, stop_pct=0.01, take_pct=0.04):
-        self.stop_pct = stop_pct
-        self.take_pct = take_pct
+class EMARSIATRStrategy:
+    def __init__(
+        self,
+        ema_period=50,
+        rsi_period=14,
+        atr_period=14,
+        atr_multiplier=1.5,
+        risk_reward=2.0,
+    ):
+        self.ema_period = ema_period
+        self.rsi_period = rsi_period
+        self.atr_period = atr_period
+        self.atr_multiplier = atr_multiplier
+        self.risk_reward = risk_reward
 
     def generate_trade(self, candles, index):
-        if index < 20:
+        # Pre-calculate indicators once
+        ema_values = ema(candles, self.ema_period)
+        rsi_values = rsi(candles, self.rsi_period)
+        atr_values = atr(candles, self.atr_period)
+
+        # Safety checks
+        if (
+            ema_values[index] is None
+            or rsi_values[index] is None
+            or atr_values[index] is None
+        ):
             return None
 
-        prev = candles[index - 1]
         curr = candles[index]
 
-        # Simple momentum rule
-        if curr.close > prev.high:
+        # LONG conditions
+        if (
+            curr.close > ema_values[index]
+            and rsi_values[index] > 50
+        ):
             entry = curr.close
+            stop_loss = entry - atr_values[index] * self.atr_multiplier
+            risk = entry - stop_loss
+            take_profit = entry + risk * self.risk_reward
+
             return Trade(
                 direction=Direction.LONG,
                 entry_price=entry,
-                stop_loss=entry * (1 - self.stop_pct),
-                take_profit=entry * (1 + self.take_pct),
+                stop_loss=stop_loss,
+                take_profit=take_profit,
                 entry_time=curr.close_time,
             )
 
