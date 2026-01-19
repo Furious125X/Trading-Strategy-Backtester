@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 
 @dataclass
-class Candle :
+class Candle:
     open_time: datetime
     close_time: datetime
     open: float
@@ -11,20 +12,25 @@ class Candle :
     close: float
     volume: float
 
-from enum import Enum
 
 class Direction(Enum):
     LONG = "long"
     SHORT = "short"
 
+
 @dataclass
 class Trade:
     direction: Direction
+
     entry_price: float
     stop_loss: float
     take_profit: float
-    entry_time: datetime
-    exit_time: datetime | None = None
-    exit_price: float | None = None
-    result: str | None = None
 
+    entry_time: datetime
+    entry_index: int
+
+    exit_time: datetime | None = None
+    exit_index: int | None = None
+    exit_price: float | None = None
+
+    result: str | None = None

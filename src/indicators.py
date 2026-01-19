@@ -1,13 +1,6 @@
 # indicators.py
 
 def ema(candles, period):
-    """
-    Calculates Exponential Moving Average (EMA)
-
-    Returns:
-        List[float | None] — same length as candles
-    """
-
     if period <= 0:
         raise ValueError("EMA period must be > 0")
 
@@ -16,7 +9,6 @@ def ema(candles, period):
 
     k = 2 / (period + 1)
 
-    # First EMA value = simple moving average
     if len(closes) < period:
         return ema_values
 
@@ -28,14 +20,8 @@ def ema(candles, period):
 
     return ema_values
 
+
 def rsi(candles, period=14):
-    """
-    Calculates Relative Strength Index (RSI)
-
-    Returns:
-        List[float | None] — same length as candles
-    """
-
     if period <= 0:
         raise ValueError("RSI period must be > 0")
 
@@ -48,7 +34,6 @@ def rsi(candles, period=14):
     gains = []
     losses = []
 
-    # Initial average gain/loss
     for i in range(1, period + 1):
         change = closes[i] - closes[i - 1]
         gains.append(max(change, 0))
@@ -63,7 +48,6 @@ def rsi(candles, period=14):
         rs = avg_gain / avg_loss
         rsi_values[period] = 100 - (100 / (1 + rs))
 
-    # Wilder smoothing
     for i in range(period + 1, len(closes)):
         change = closes[i] - closes[i - 1]
         gain = max(change, 0)
@@ -80,14 +64,8 @@ def rsi(candles, period=14):
 
     return rsi_values
 
+
 def atr(candles, period=14):
-    """
-    Calculates Average True Range (ATR)
-
-    Returns:
-        List[float | None] — same length as candles
-    """
-
     if period <= 0:
         raise ValueError("ATR period must be > 0")
 
@@ -98,7 +76,6 @@ def atr(candles, period=14):
 
     true_ranges = []
 
-    # Initial True Range values
     for i in range(1, period + 1):
         high = candles[i].high
         low = candles[i].low
@@ -112,11 +89,9 @@ def atr(candles, period=14):
 
         true_ranges.append(tr)
 
-    # First ATR = simple average of TR
-    atr = sum(true_ranges) / period
-    atr_values[period] = atr
+    atr_current = sum(true_ranges) / period
+    atr_values[period] = atr_current
 
-    # Wilder smoothing
     for i in range(period + 1, len(candles)):
         high = candles[i].high
         low = candles[i].low
@@ -128,7 +103,7 @@ def atr(candles, period=14):
             abs(low - prev_close)
         )
 
-        atr = (atr * (period - 1) + tr) / period
-        atr_values[i] = atr
+        atr_current = (atr_current * (period - 1) + tr) / period
+        atr_values[i] = atr_current
 
     return atr_values

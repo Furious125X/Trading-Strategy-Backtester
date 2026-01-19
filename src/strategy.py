@@ -5,41 +5,36 @@ from indicators import ema, rsi, atr
 class EMARSIATRStrategy:
     def __init__(
         self,
+        candles,
         ema_period=50,
         rsi_period=14,
         atr_period=14,
         atr_multiplier=1.5,
         risk_reward=2.0,
     ):
-        self.ema_period = ema_period
-        self.rsi_period = rsi_period
-        self.atr_period = atr_period
+        self.candles = candles
+        self.ema = ema(candles, ema_period)
+        self.rsi = rsi(candles, rsi_period)
+        self.atr = atr(candles, atr_period)
+
         self.atr_multiplier = atr_multiplier
         self.risk_reward = risk_reward
 
-    def generate_trade(self, candles, index):
-        # Pre-calculate indicators once
-        ema_values = ema(candles, self.ema_period)
-        rsi_values = rsi(candles, self.rsi_period)
-        atr_values = atr(candles, self.atr_period)
-
+    def generate_trade(self, index):
         # Safety checks
         if (
-            ema_values[index] is None
-            or rsi_values[index] is None
-            or atr_values[index] is None
+            self.ema[index] is None
+            or self.rsi[index] is None
+            or self.atr[index] is None
         ):
             return None
 
-        curr = candles[index]
+        curr = self.candles[index]
 
         # LONG conditions
-        if (
-            curr.close > ema_values[index]
-            and rsi_values[index] > 50
-        ):
+        if curr.close > self.ema[index] and self.rsi[index] > 50:
             entry = curr.close
-            stop_loss = entry - atr_values[index] * self.atr_multiplier
+            stop_loss = entry - self.atr[index] * self.atr_multiplier
             risk = entry - stop_loss
             take_profit = entry + risk * self.risk_reward
 
@@ -49,6 +44,7 @@ class EMARSIATRStrategy:
                 stop_loss=stop_loss,
                 take_profit=take_profit,
                 entry_time=curr.close_time,
+                entry_index=index,
             )
 
         return None
