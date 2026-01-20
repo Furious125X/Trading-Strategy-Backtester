@@ -86,3 +86,16 @@ def pnl_stats(trades):
         "profit_factor": profit_factor,
         "risk_reward": risk_reward,
     }
+
+def r_multiple_stats(trades):
+    rs = [t.r_multiple for t in trades if t.r_multiple is not None]
+
+    if not rs:
+        return {}
+
+    return {
+        "total_R": sum(rs),
+        "average_R": sum(rs) / len(rs),
+        "max_R": max(rs),
+        "min_R": min(rs),
+    }

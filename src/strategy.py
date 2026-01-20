@@ -47,4 +47,20 @@ class EMARSIATRStrategy:
                 entry_index=index,
             )
 
+        # SHORT conditions
+        if curr.close < self.ema[index] and self.rsi[index] < 50:
+            entry = curr.close
+            stop_loss = entry + self.atr[index] * self.atr_multiplier
+            risk = stop_loss - entry
+            take_profit = entry - risk * self.risk_reward
+
+            return Trade(
+                direction=Direction.SHORT,
+                entry_price=entry,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                entry_time=curr.close_time,
+                entry_index=index,
+            )
+
         return None

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+
 @dataclass
 class Candle:
     open_time: datetime
@@ -34,3 +35,5 @@ class Trade:
     exit_price: float | None = None
 
     result: str | None = None
+
+    r_multiple: float | None = None

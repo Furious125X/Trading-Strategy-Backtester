@@ -1,6 +1,6 @@
 from loader import load_candles
 from simulator import simulate_trade
-from stats import basic_trade_stats, pnl_stats
+from stats import basic_trade_stats, pnl_stats, r_multiple_stats
 from strategy import EMARSIATRStrategy
 
 
@@ -28,7 +28,7 @@ def main():
 
     print(basic_trade_stats(trades))
     print(pnl_stats(trades))
-
+    print(r_multiple_stats(trades))
 
 if __name__ == "__main__":
     main()
