@@ -10,7 +10,7 @@ class EMARSIATRStrategy:
         rsi_period=14,
         atr_period=14,
         atr_multiplier=1.5,
-        risk_reward=1.0,
+        risk_reward=2.0,
     ):
         self.candles = candles
         self.ema = ema(candles, ema_period)

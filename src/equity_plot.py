@@ -12,6 +12,5 @@ def plot_equity_curve(equity_curve, drawdowns):
     plt.legend()
     plt.grid(True)
 
-    # 🔥 SAVE instead of show
     plt.savefig("equity_curve.png")
     plt.close()
