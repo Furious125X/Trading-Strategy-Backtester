@@ -1,5 +1,10 @@
 from models import Direction
+from collections import defaultdict
 
+
+# -----------------------------
+# BASIC STATS (unchanged)
+# -----------------------------
 
 def basic_trade_stats(trades):
     completed = [t for t in trades if t.result in ("win", "loss")]
@@ -48,7 +53,7 @@ def pnl_stats(trades):
         if pnl > 0:
             wins.append(pnl)
         else:
-            losses.append(abs(pnl))  # store losses as positive numbers
+            losses.append(abs(pnl))
 
     total_trades = len(wins) + len(losses)
 
@@ -70,11 +75,7 @@ def pnl_stats(trades):
         else float("inf")
     )
 
-    risk_reward = (
-        avg_win / avg_loss
-        if avg_loss > 0
-        else float("inf")
-    )
+    risk_reward = avg_win / avg_loss if avg_loss > 0 else float("inf")
 
     return {
         "total_pnl": total_pnl,
@@ -86,6 +87,7 @@ def pnl_stats(trades):
         "profit_factor": profit_factor,
         "risk_reward": risk_reward,
     }
+
 
 def r_multiple_stats(trades):
     rs = [t.r_multiple for t in trades if t.r_multiple is not None]
@@ -99,3 +101,32 @@ def r_multiple_stats(trades):
         "max_R": max(rs),
         "min_R": min(rs),
     }
+
+
+# -----------------------------
+# REGIME ANALYSIS (FIXED)
+# -----------------------------
+
+def group_trades_by_regime(trades):
+    groups = defaultdict(list)
+    for t in trades:
+        if t.regime is not None and t.r_multiple is not None:
+            groups[t.regime].append(t)
+    return groups
+
+
+def regime_expectancy(trades):
+    grouped = group_trades_by_regime(trades)
+    results = {}
+
+    for regime, regime_trades in grouped.items():
+        total_r = sum(t.r_multiple for t in regime_trades)
+        avg_r = total_r / len(regime_trades) if regime_trades else 0
+
+        results[regime] = {
+            "trades": len(regime_trades),
+            "total_R": total_r,
+            "expectancy_R": avg_r,
+        }
+
+    return results

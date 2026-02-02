@@ -36,20 +36,6 @@ def aggregate_candles(candles, factor):
     return htf_candles
 
 
-def find_htf_index(htf_candles, ltf_index):
-    """
-    Finds the HTF candle corresponding to a given LTF index.
-    """
-    for i in range(len(htf_candles)):
-        if htf_candles[i].lt_index <= ltf_index:
-            if i == len(htf_candles) - 1:
-                return i
-
-            if htf_candles[i + 1].lt_index > ltf_index:
-                return i
-
-    return None
-
 #Helper function to find corresponding HTF index
 def find_htf_index(htf_candles, ltf_index):
     for i in range(len(htf_candles) - 1, -1, -1):

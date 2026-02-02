@@ -37,3 +37,7 @@ class Trade:
     result: str | None = None
 
     r_multiple: float | None = None
+
+     # ---- CONTEXT METADATA (NEW) ----
+    regime: str | None = None
+    htf_bias: str | None = None
