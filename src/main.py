@@ -1,7 +1,11 @@
 from loader import load_candles
 from simulator import simulate_trade
-from stats import basic_trade_stats, pnl_stats, r_multiple_stats, regime_expectancy
-from strategy import EMARSIATRStrategy
+from stats import (
+    basic_trade_stats,
+    pnl_stats,
+    r_multiple_stats,
+    regime_expectancy,
+)
 from equity import build_equity_curve
 from equity_plot import plot_equity_curve
 from timeframe import aggregate_candles
@@ -9,44 +13,46 @@ from htf_bias import htf_trend_bias
 from indicators import ema
 from regime import detect_regime
 
+from strategies.ema_rsi_atr_strategy import EMARSIATRStrategy
+
 
 def main():
     candles = load_candles("data/ETHUSD_15.csv")
 
-    # ---- PRECOMPUTE LTF INDICATORS (ONCE) ----
+    # ---- PRECOMPUTE LTF INDICATORS ----
     ema_fast = ema(candles, 20)
     ema_slow = ema(candles, 50)
 
-    # ---- BUILD HTF DATA ----
-    HTF_FACTOR = 4  # 15m → 1H
+    # ---- HTF ----
+    HTF_FACTOR = 4
     htf_candles = aggregate_candles(candles, HTF_FACTOR)
 
     htf_ema_fast = ema(htf_candles, 20)
     htf_ema_slow = ema(htf_candles, 50)
 
+    # ---- STRATEGY ----
     strategy = EMARSIATRStrategy(candles)
+    strategy.precompute()
 
     trades = []
     i = 0
 
-    # ---- SINGLE-PASS ENGINE (O(n)) ----
     while i < len(candles):
 
-        # ---- REGIME (O(1)) ----
+        # ---- REGIME ----
         regime = detect_regime(
             ema_fast,
             ema_slow,
             i
         )
 
-        # ---- HTF INDEX (O(1)) ----
+        # ---- HTF INDEX ----
         htf_i = i // HTF_FACTOR
-
         if htf_i >= len(htf_candles):
             i += 1
             continue
 
-        # ---- HTF BIAS FILTER ----
+        # ---- HTF BIAS ----
         bias = htf_trend_bias(
             htf_candles,
             htf_ema_fast,
@@ -62,7 +68,6 @@ def main():
         trade = strategy.generate_trade(i)
 
         if trade:
-            trade.entry_index = i
             trade.regime = regime
             trade.htf_bias = bias
 
