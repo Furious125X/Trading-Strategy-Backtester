@@ -13,46 +13,55 @@ from htf_bias import htf_trend_bias
 from indicators import ema
 from regime import detect_regime
 
-from strategies.ema_rsi_atr_strategy import EMARSIATRStrategy
+from strategies.registry import get_strategy
+from config import CONFIG
 
 
 def main():
-    candles = load_candles("data/ETHUSD_15.csv")
+    # ---- LOAD CONFIG ----
+    data_cfg = CONFIG["data"]
+    strat_cfg = CONFIG["strategy"]
+    risk_cfg = CONFIG["risk"]
 
-    # ---- PRECOMPUTE LTF INDICATORS ----
+    # ---- LOAD DATA ----
+    candles = load_candles(data_cfg["path"])
+
+    # ---- LTF INDICATORS ----
     ema_fast = ema(candles, 20)
     ema_slow = ema(candles, 50)
 
     # ---- HTF ----
-    HTF_FACTOR = 4
+    HTF_FACTOR = data_cfg["htf_factor"]
     htf_candles = aggregate_candles(candles, HTF_FACTOR)
 
     htf_ema_fast = ema(htf_candles, 20)
     htf_ema_slow = ema(htf_candles, 50)
 
     # ---- STRATEGY ----
-    strategy = EMARSIATRStrategy(candles)
+    StrategyClass = get_strategy(strat_cfg["name"])
+    strategy = StrategyClass(
+        candles,
+        **strat_cfg["params"]
+    )
     strategy.precompute()
 
     trades = []
     i = 0
 
+    # ---- ENGINE ----
     while i < len(candles):
 
-        # ---- REGIME ----
         regime = detect_regime(
             ema_fast,
             ema_slow,
             i
         )
 
-        # ---- HTF INDEX ----
         htf_i = i // HTF_FACTOR
         if htf_i >= len(htf_candles):
             i += 1
             continue
 
-        # ---- HTF BIAS ----
         bias = htf_trend_bias(
             htf_candles,
             htf_ema_fast,
@@ -64,7 +73,6 @@ def main():
             i += 1
             continue
 
-        # ---- STRATEGY SIGNAL ----
         trade = strategy.generate_trade(i)
 
         if trade:
@@ -92,8 +100,8 @@ def main():
     # ---- EQUITY ----
     equity_curve, drawdowns = build_equity_curve(
         trades,
-        starting_balance=10_000,
-        risk_per_trade=0.01,
+        starting_balance=risk_cfg["starting_balance"],
+        risk_per_trade=risk_cfg["risk_per_trade"],
     )
 
     if equity_curve:
