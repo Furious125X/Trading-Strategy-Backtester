@@ -14,7 +14,13 @@ from indicators import ema
 from regime import detect_regime
 
 from strategies.registry import get_strategy
-from config import CONFIG
+from strategies.config import CONFIG
+
+from context import BacktestContext
+from levels import Levels
+from momentum import MomentumDetector
+
+
 
 
 def main():
@@ -25,6 +31,11 @@ def main():
 
     # ---- LOAD DATA ----
     candles = load_candles(data_cfg["path"])
+
+    # ---- CONTEXT ----
+    context = BacktestContext()
+    context.levels = Levels(candles)
+    context.momentum = MomentumDetector(candles)
 
     # ---- LTF INDICATORS ----
     ema_fast = ema(candles, 20)
