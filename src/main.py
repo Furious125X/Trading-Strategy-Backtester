@@ -17,10 +17,7 @@ from strategies.registry import get_strategy
 from strategies.config import CONFIG
 
 from context import BacktestContext
-from levels import Levels
 from momentum import MomentumDetector
-
-
 
 
 def main():
@@ -34,7 +31,6 @@ def main():
 
     # ---- CONTEXT ----
     context = BacktestContext()
-    context.levels = Levels(candles)
     context.momentum = MomentumDetector(candles)
 
     # ---- LTF INDICATORS ----
@@ -50,10 +46,7 @@ def main():
 
     # ---- STRATEGY ----
     StrategyClass = get_strategy(strat_cfg["name"])
-    strategy = StrategyClass(
-        candles,
-        **strat_cfg["params"]
-    )
+    strategy = StrategyClass(candles, context=context, **strat_cfg["params"])
     strategy.precompute()
 
     trades = []
@@ -62,11 +55,7 @@ def main():
     # ---- ENGINE ----
     while i < len(candles):
 
-        regime = detect_regime(
-            ema_fast,
-            ema_slow,
-            i
-        )
+        regime = detect_regime(ema_fast, ema_slow, i)
 
         htf_i = i // HTF_FACTOR
         if htf_i >= len(htf_candles):

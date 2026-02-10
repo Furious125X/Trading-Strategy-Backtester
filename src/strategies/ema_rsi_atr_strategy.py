@@ -7,6 +7,7 @@ class EMARSIATRStrategy(Strategy):
     def __init__(
         self,
         candles,
+        context,
         ema_period=50,
         rsi_period=14,
         atr_period=14,
@@ -14,6 +15,8 @@ class EMARSIATRStrategy(Strategy):
         risk_reward=2.0,
     ):
         super().__init__(candles)
+
+        self.context = context
 
         self.ema_period = ema_period
         self.rsi_period = rsi_period
@@ -31,7 +34,7 @@ class EMARSIATRStrategy(Strategy):
         self.atr = atr(self.candles, self.atr_period)
 
     def generate_trade(self, index):
-        # Safety checks
+        # ---- SAFETY ----
         if (
             self.ema[index] is None
             or self.rsi[index] is None
@@ -41,7 +44,11 @@ class EMARSIATRStrategy(Strategy):
 
         curr = self.candles[index]
 
-        # LONG
+        # ---- MOMENTUM FILTER ----
+        if not self.context.momentum.is_bullish_momentum(index):
+            return None
+
+        # ---- LONG SETUP ----
         if curr.close > self.ema[index] and self.rsi[index] > 50:
             entry = curr.close
             stop_loss = entry - self.atr[index] * self.atr_multiplier
@@ -50,22 +57,6 @@ class EMARSIATRStrategy(Strategy):
 
             return Trade(
                 direction=Direction.LONG,
-                entry_price=entry,
-                stop_loss=stop_loss,
-                take_profit=take_profit,
-                entry_time=curr.close_time,
-                entry_index=index,
-            )
-
-        # SHORT
-        if curr.close < self.ema[index] and self.rsi[index] < 50:
-            entry = curr.close
-            stop_loss = entry + self.atr[index] * self.atr_multiplier
-            risk = stop_loss - entry
-            take_profit = entry - risk * self.risk_reward
-
-            return Trade(
-                direction=Direction.SHORT,
                 entry_price=entry,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
