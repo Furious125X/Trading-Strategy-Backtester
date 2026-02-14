@@ -12,6 +12,8 @@ from timeframe import aggregate_candles
 from htf_bias import htf_trend_bias
 from indicators import ema
 from regime import detect_regime
+from levels import Levels
+
 
 from strategies.registry import get_strategy
 from strategies.config import CONFIG
@@ -32,6 +34,8 @@ def main():
     # ---- CONTEXT ----
     context = BacktestContext()
     context.momentum = MomentumDetector(candles)
+    context.levels = Levels(candles)
+
 
     # ---- LTF INDICATORS ----
     ema_fast = ema(candles, 20)
