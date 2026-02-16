@@ -21,6 +21,8 @@ from strategies.config import CONFIG
 from context import BacktestContext
 from momentum import MomentumDetector
 
+from stats import monte_carlo_simulation, summarize_monte_carlo
+
 
 def main():
     # ---- LOAD CONFIG ----
@@ -117,6 +119,17 @@ def main():
 
     print("\nExpectancy by Trade Type:")
     print(tag_expectancy(trades, "type"))
+
+
+    print("\nRunning Monte Carlo...")
+
+    mc_results = monte_carlo_simulation(trades, runs=1000)
+    mc_summary = summarize_monte_carlo(mc_results)
+
+    if mc_summary:
+        print("\nMonte Carlo Summary:")
+        for k, v in mc_summary.items():
+            print(k, round(v, 2))
 
 
 

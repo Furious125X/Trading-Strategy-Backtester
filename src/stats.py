@@ -154,3 +154,53 @@ def tag_expectancy(trades, tag_key):
             expectancy[k] = sum(values) / len(values)
 
     return expectancy
+
+
+import random
+
+
+def monte_carlo_simulation(trades, runs=1000):
+    r_values = [t.r_multiple for t in trades if t.r_multiple is not None]
+
+    if not r_values:
+        return None
+
+    results = []
+
+    for _ in range(runs):
+        shuffled = random.sample(r_values, len(r_values))
+
+        equity = 0
+        peak = 0
+        max_dd = 0
+
+        for r in shuffled:
+            equity += r
+            peak = max(peak, equity)
+            dd = peak - equity
+            max_dd = max(max_dd, dd)
+
+        results.append({
+            "final_r": equity,
+            "max_dd_r": max_dd
+        })
+
+    return results
+
+
+def summarize_monte_carlo(results):
+    if not results:
+        return None
+
+    finals = [r["final_r"] for r in results]
+    drawdowns = [r["max_dd_r"] for r in results]
+
+    finals.sort()
+    drawdowns.sort()
+
+    return {
+        "median_final_r": finals[len(finals)//2],
+        "worst_5pct_final_r": finals[int(len(finals)*0.05)],
+        "median_max_dd_r": drawdowns[len(drawdowns)//2],
+        "worst_5pct_dd_r": drawdowns[int(len(drawdowns)*0.95)],
+    }
