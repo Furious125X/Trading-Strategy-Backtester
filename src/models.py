@@ -41,3 +41,5 @@ class Trade:
      # ---- CONTEXT METADATA (NEW) ----
     regime: str | None = None
     htf_bias: str | None = None
+
+    trade_tags: dict | None = None

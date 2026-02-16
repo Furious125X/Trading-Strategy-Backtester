@@ -130,3 +130,27 @@ def regime_expectancy(trades):
         }
 
     return results
+
+def tag_expectancy(trades, tag_key):
+    results = {}
+
+    for t in trades:
+        if not hasattr(t, "tags"):
+            continue
+
+        if tag_key not in t.tags:
+            continue
+
+        key = t.tags[tag_key]
+
+        if key not in results:
+            results[key] = []
+
+        results[key].append(t.r_multiple)
+
+    expectancy = {}
+    for k, values in results.items():
+        if values:
+            expectancy[k] = sum(values) / len(values)
+
+    return expectancy

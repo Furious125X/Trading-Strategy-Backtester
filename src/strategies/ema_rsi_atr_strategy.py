@@ -87,7 +87,7 @@ class EMARSIATRStrategy(Strategy):
 
                     self.active_break_level = None  # reset
 
-                    return Trade(
+                    trade = Trade(
                         direction=Direction.LONG,
                         entry_price=entry,
                         stop_loss=stop_loss,
@@ -95,6 +95,15 @@ class EMARSIATRStrategy(Strategy):
                         entry_time=curr.close_time,
                         entry_index=index,
                     )
+
+                    # ---- TAGGING ----S
+                    trade.tags = {
+                        "type": "breakout_retest",
+                        "rsi": self.rsi[index],
+                        "ema_distance": (curr.close - self.ema[index]) / self.ema[index],
+                    }
+
+                    return trade
 
             # Invalidate if price dumps below level
             if curr.close < self.active_break_level:

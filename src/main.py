@@ -13,7 +13,7 @@ from htf_bias import htf_trend_bias
 from indicators import ema
 from regime import detect_regime
 from levels import Levels
-
+from stats import tag_expectancy
 
 from strategies.registry import get_strategy
 from strategies.config import CONFIG
@@ -114,6 +114,10 @@ def main():
         plot_equity_curve(equity_curve, drawdowns)
     else:
         print("No trades taken — equity curve empty.")
+
+    print("\nExpectancy by Trade Type:")
+    print(tag_expectancy(trades, "type"))
+
 
 
 if __name__ == "__main__":
