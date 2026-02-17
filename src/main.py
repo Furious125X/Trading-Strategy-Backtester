@@ -23,6 +23,7 @@ from momentum import MomentumDetector
 
 from stats import monte_carlo_simulation, summarize_monte_carlo
 
+from indicators import ema, rsi, atr
 
 def main():
     # ---- LOAD CONFIG ----
@@ -40,20 +41,24 @@ def main():
 
 
     # ---- LTF INDICATORS ----
-    ema_fast = ema(candles, 20)
-    ema_slow = ema(candles, 50)
+    context.candles = candles
+
+    context.ema_fast = ema(candles, 20)
+    context.ema_slow = ema(candles, 50)
+    context.rsi = rsi(candles, 14)
+    context.atr = atr(candles, 14)
+
 
     # ---- HTF ----
     HTF_FACTOR = data_cfg["htf_factor"]
-    htf_candles = aggregate_candles(candles, HTF_FACTOR)
+    context.htf_candles = aggregate_candles(candles, HTF_FACTOR)
+    context.htf_ema_fast = ema(context.htf_candles, 20)
+    context.htf_ema_slow = ema(context.htf_candles, 50)
 
-    htf_ema_fast = ema(htf_candles, 20)
-    htf_ema_slow = ema(htf_candles, 50)
 
     # ---- STRATEGY ----
     StrategyClass = get_strategy(strat_cfg["name"])
-    strategy = StrategyClass(candles, context=context, **strat_cfg["params"])
-    strategy.precompute()
+    strategy = StrategyClass(context, **strat_cfg["params"])
 
     trades = []
     i = 0
@@ -61,29 +66,35 @@ def main():
     # ---- ENGINE ----
     while i < len(candles):
 
-        regime = detect_regime(ema_fast, ema_slow, i)
+        context.regime = detect_regime(
+            context.ema_fast,
+            context.ema_slow,
+            i
+        )
 
         htf_i = i // HTF_FACTOR
-        if htf_i >= len(htf_candles):
+        if htf_i >= len(context.htf_candles):
             i += 1
             continue
 
-        bias = htf_trend_bias(
-            htf_candles,
-            htf_ema_fast,
-            htf_ema_slow,
+        context.htf_bias = htf_trend_bias(
+            context.htf_candles,
+            context.htf_ema_fast,
+            context.htf_ema_slow,
             htf_i
         )
 
-        if bias != "bullish":
+        if context.htf_bias != "bullish":
             i += 1
             continue
+
 
         trade = strategy.generate_trade(i)
 
         if trade:
-            trade.regime = regime
-            trade.htf_bias = bias
+            trade.regime = context.regime
+            trade.htf_bias = context.htf_bias
+
 
             result = simulate_trade(trade, candles[i + 1:])
             trades.append(result)

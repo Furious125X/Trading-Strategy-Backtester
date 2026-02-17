@@ -2,8 +2,7 @@ from abc import ABC, abstractmethod
 
 
 class Strategy(ABC):
-    def __init__(self, candles, context=None):
-        self.candles = candles
+    def __init__(self, context):
         self.context = context
 
     @abstractmethod
