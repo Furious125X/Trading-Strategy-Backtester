@@ -5,10 +5,13 @@ class Strategy(ABC):
     def __init__(self, context):
         self.context = context
 
-    @abstractmethod
     def precompute(self):
         pass
 
     @abstractmethod
-    def generate_trade(self, index):
+    def should_enter(self, index):
+        pass
+
+    @abstractmethod
+    def build_trade(self, index):
         pass

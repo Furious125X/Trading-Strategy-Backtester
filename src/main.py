@@ -89,12 +89,14 @@ def main():
             continue
 
 
-        trade = strategy.generate_trade(i)
+        trade = None
+
+        if strategy.should_enter(i):
+            trade = strategy.build_trade(i)
 
         if trade:
             trade.regime = context.regime
             trade.htf_bias = context.htf_bias
-
 
             result = simulate_trade(trade, candles[i + 1:])
             trades.append(result)
@@ -102,6 +104,7 @@ def main():
             if result.exit_index is not None:
                 i = result.exit_index + 1
                 continue
+
 
         i += 1
 

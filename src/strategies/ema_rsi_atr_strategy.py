@@ -27,35 +27,29 @@ class EMARSIATRStrategy(Strategy):
         # Indicators already computed in context
         pass
 
-    def generate_trade(self, index):
+    def should_enter(self, index):
         if index == 0:
-            return None
+            return False
 
-        # Ensure indicators exist
         if (
             self.context.ema_fast[index] is None
             or self.context.rsi[index] is None
             or self.context.atr[index] is None
         ):
-            return None
+            return False
 
         curr = self.context.candles[index]
         prev = self.context.candles[index - 1]
-
         levels = self.context.levels
 
-        # -----------------------------------
         # 1️⃣ Detect breakout
-        # -----------------------------------
         broken_level = levels.broke_above(prev.close, curr.close)
 
         if broken_level:
             self.active_break_level = broken_level
-            return None  # wait for retest
+            return False
 
-        # -----------------------------------
-        # 2️⃣ Wait for retest holding
-        # -----------------------------------
+        # 2️⃣ Retest confirmation
         if self.active_break_level:
 
             if levels.retest_holding(
@@ -63,10 +57,6 @@ class EMARSIATRStrategy(Strategy):
                 curr.low,
                 curr.close,
             ):
-
-                # -----------------------------------
-                # 3️⃣ Confirm structure + momentum
-                # -----------------------------------
 
                 ema_value = self.context.ema_fast[index]
                 rsi_value = self.context.rsi[index]
@@ -76,39 +66,48 @@ class EMARSIATRStrategy(Strategy):
                     and rsi_value > 50
                     and self.context.momentum.is_bullish_momentum(index)
                 ):
+                    return True
 
-                    entry = curr.close
-                    stop_loss = self.active_break_level
-                    risk = entry - stop_loss
-
-                    if risk <= 0:
-                        self.active_break_level = None
-                        return None
-
-                    take_profit = entry + risk * self.risk_reward
-
-                    self.active_break_level = None  # reset
-
-                    trade = Trade(
-                        direction=Direction.LONG,
-                        entry_price=entry,
-                        stop_loss=stop_loss,
-                        take_profit=take_profit,
-                        entry_time=curr.close_time,
-                        entry_index=index,
-                    )
-
-                    # ---- TAGGING ----
-                    trade.tags = {
-                        "type": "breakout_retest",
-                        "rsi": rsi_value,
-                        "ema_distance": (curr.close - ema_value) / ema_value,
-                    }
-
-                    return trade
-
-            # Invalidate if price closes below level
+            # Invalidate if lost level
             if curr.close < self.active_break_level:
                 self.active_break_level = None
+
+        return False
+
+    def build_trade(self, index):
+
+        curr = self.context.candles[index]
+
+        entry = curr.close
+        stop_loss = self.active_break_level
+        risk = entry - stop_loss
+
+        if risk <= 0:
+            self.active_break_level = None
+            return None
+
+        take_profit = entry + risk * self.risk_reward
+
+        self.active_break_level = None  # reset after building
+
+        trade = Trade(
+            direction=Direction.LONG,
+            entry_price=entry,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
+            entry_time=curr.close_time,
+            entry_index=index,
+        )
+
+        trade.tags = {
+            "type": "breakout_retest",
+            "rsi": self.context.rsi[index],
+            "ema_distance": (
+                curr.close - self.context.ema_fast[index]
+            ) / self.context.ema_fast[index],
+        }
+
+        return trade
+
 
         return None
