@@ -11,7 +11,6 @@ class EMARSIATRStrategy(Strategy):
         atr_period=14,
         atr_multiplier=1.5,
         risk_reward=2.0,
-        
     ):
         super().__init__(context)
 
@@ -20,104 +19,113 @@ class EMARSIATRStrategy(Strategy):
         self.atr_period = atr_period
         self.atr_multiplier = atr_multiplier
         self.risk_reward = risk_reward
+
+        # state
         self.break_confirm_index = None
-        # Track breakout state
         self.active_break_level = None
 
     def precompute(self):
-        # Indicators already computed in context
+        # indicators are computed in context (no-op)
         pass
 
     def should_enter(self, index):
-        if index == 0:
+        # basic guards
+        if index <= 0:
             return False
 
-        if (
-            self.context.ema_fast[index] is None
-            or self.context.rsi[index] is None
-            or self.context.atr[index] is None
-        ):
+        ctx = self.context
+
+        # indicators must exist
+        try:
+            ema_fast = ctx.ema_fast[index]
+            rsi_value = ctx.rsi[index]
+            atr_value = ctx.atr[index]
+        except Exception:
             return False
 
-        curr = self.context.candles[index]
-        prev = self.context.candles[index - 1]
-        levels = self.context.levels
-        
-        htf_factor = len(self.context.candles) // len(self.context.htf_candles)
+        if ema_fast is None or rsi_value is None or atr_value is None:
+            return False
+
+        candles = ctx.candles
+        if index >= len(candles):
+            return False
+
+        curr = candles[index]
+        prev = candles[index - 1]
+
+        # HTF EMA confluence (safe compute)
+        if not ctx.htf_candles or not getattr(ctx, "htf_ema_fast", None):
+            return False
+
+        htf_factor = max(1, len(ctx.candles) // len(ctx.htf_candles))
         htf_index = index // htf_factor
-
-        if htf_index >= len(self.context.htf_ema_fast):
+        if htf_index >= len(ctx.htf_ema_fast):
             return False
 
-        htf_ema_fast = self.context.htf_ema_fast[htf_index]
-        htf_ema_slow = self.context.htf_ema_slow[htf_index]
+        htf_ema_fast = ctx.htf_ema_fast[htf_index]
+        htf_ema_slow = ctx.htf_ema_slow[htf_index]
 
-        htf_trend_aligned = htf_ema_fast > htf_ema_slow
-
-        if not htf_trend_aligned:
+        # require HTF bullish
+        if not (htf_ema_fast is not None and htf_ema_slow is not None and htf_ema_fast > htf_ema_slow):
             return False
 
-        curr = self.context.candles[index]
-        
+        # price above HTF ema
         if curr.close < htf_ema_fast:
             return False
 
-        # 1️⃣ Detect breakout
-        broken_level = levels.broke_above(prev.close, curr.close)
+        # levels object
+        levels = ctx.levels
+        if not levels:
+            return False
 
+        # 1) detect new breakout (first close above level)
+        broken_level = levels.broke_above(prev.close, curr.close)
         if broken_level:
+            # start confirmation process
             self.active_break_level = broken_level
             self.break_confirm_index = index
             return False
 
-        # 2️⃣ Confirm second close above level
-        if hasattr(self, "break_confirm_index"):
-
+        # 2) two-close confirmation: check the candle immediately after breakout
+        if self.break_confirm_index is not None:
             if index == self.break_confirm_index + 1:
-
-                if curr.close > self.active_break_level:
-                    # confirmed breakout
-                    pass
+                # second close must remain above level
+                if curr.close > (self.active_break_level or 0):
+                    # confirmed breakout — keep active_break_level and wait for retest
+                    # clear break_confirm_index to avoid re-checking
+                    self.break_confirm_index = None
                 else:
-                    # failed confirmation
+                    # failed confirmation — reset
                     self.active_break_level = None
-                    del self.break_confirm_index
+                    self.break_confirm_index = None
                     return False
 
-        # 2️⃣ Retest confirmation
-        if self.active_break_level:
-
-            ema_value = self.context.ema_fast[index]
-            rsi_value = self.context.rsi[index]
-            atr_value = self.context.atr[index]
-
+        # 3) retest logic: require price touches level + strong rejection
+        if self.active_break_level is not None:
             level = self.active_break_level
 
-            # ---- Retest Conditions ----
-
-            # 1️⃣ Must dip into level area (allow small ATR buffer)
+            # ATR shield
+            atr_value = ctx.atr[index]
             tolerance = atr_value * 0.2
+
+            # condition 1: touched level (allow small buffer)
             touched_level = curr.low <= level + tolerance
 
-            # 2️⃣ Must NOT close below level
+            # condition 2: must close above level
             closed_above = curr.close > level
 
-            # 3️⃣ Strong bullish rejection candle
-            body_size = abs(curr.close - curr.open)
-            full_range = curr.high - curr.low
-            prev = self.context.candles[index - 1]
+            # condition 3: avoid deep breakdown beyond safe ATR
+            no_deep_break = curr.low > level - (atr_value * 0.5)
 
-            # 1️⃣ Body must dominate candle
-            strong_body = body_size > (full_range * 0.65)
+            # momentum/expansion candle checks
+            body = abs(curr.close - curr.open)
+            full_range = (curr.high - curr.low) if (curr.high - curr.low) != 0 else 1e-9
+            prev_range = (prev.high - prev.low) if (prev.high - prev.low) != 0 else 1e-9
 
-            # 2️⃣ Close must be near high (bullish conviction)
+            # stronger composition checks
+            strong_body = body > (full_range * 0.65)
             close_near_high = (curr.high - curr.close) < (full_range * 0.25)
-
-            # 3️⃣ Range expansion vs previous candle
-            range_expansion = full_range > (prev.high - prev.low)
-
-            # 4️⃣ Must be meaningful relative to ATR
-            atr_value = self.context.atr[index]
+            range_expansion = full_range > prev_range
             atr_expansion = full_range > (atr_value * 0.8)
 
             momentum_candle = (
@@ -127,51 +135,56 @@ class EMARSIATRStrategy(Strategy):
                 and atr_expansion
             )
 
-            # 4️⃣ Avoid deep breakdown
-            no_deep_break = curr.low > level - (atr_value * 0.5)
-
             if touched_level and closed_above and momentum_candle and no_deep_break:
-                ema_value = self.context.ema_fast[index]
-                rsi_value = self.context.rsi[index]
+                # EMA (LTF) alignment check
+                ema_fast = ctx.ema_fast[index]
+                ema_slow = ctx.ema_slow[index]
+                if not (ema_fast is not None and ema_slow is not None and ema_fast > ema_slow):
+                    # LTF trend not aligned
+                    return False
 
-                if (
-                    curr.close > ema_value
-                    and rsi_value > 50
-                    and self.context.momentum.is_bullish_momentum(index)
-                ):
-                    # ---- EMA ALIGNMENT CHECK ----
-                    ema_fast = self.context.ema_fast[index]
-                    ema_slow = self.context.ema_slow[index]
+                # RSI confirmation optional (we require >50 here)
+                if not (rsi_value > 50):
+                    return False
 
-                    ltf_trend_aligned = ema_fast > ema_slow
+                # momentum detector (one candle confirmation)
+                if not ctx.momentum.is_bullish_momentum(index):
+                    return False
 
-                    if not ltf_trend_aligned:
-                        return False
-                    
-                    return True
+                # all checks passed — entry allowed
+                return True
 
-            
-            # Invalidate if lost level
-            if curr.close < self.active_break_level:
+            # if price closed below level, invalidate state
+            if curr.close < level:
                 self.active_break_level = None
+                self.break_confirm_index = None
 
         return False
 
     def build_trade(self, index):
+        ctx = self.context
+        candles = ctx.candles
+        if index >= len(candles):
+            return None
 
-        curr = self.context.candles[index]
+        curr = candles[index]
 
         entry = curr.close
         stop_loss = self.active_break_level
-        risk = entry - stop_loss
+        if stop_loss is None:
+            return None
 
+        risk = entry - stop_loss
         if risk <= 0:
+            # invalid or negative risk
             self.active_break_level = None
             return None
 
         take_profit = entry + risk * self.risk_reward
 
-        self.active_break_level = None  # reset after building
+        # reset internal state
+        self.active_break_level = None
+        self.break_confirm_index = None
 
         trade = Trade(
             direction=Direction.LONG,
@@ -182,15 +195,12 @@ class EMARSIATRStrategy(Strategy):
             entry_index=index,
         )
 
+        # tags for analysis
+        ema_value = ctx.ema_fast[index]
         trade.tags = {
             "type": "breakout_retest",
-            "rsi": self.context.rsi[index],
-            "ema_distance": (
-                curr.close - self.context.ema_fast[index]
-            ) / self.context.ema_fast[index],
+            "rsi": ctx.rsi[index],
+            "ema_distance": (curr.close - ema_value) / ema_value if ema_value else 0.0,
         }
 
         return trade
-
-
-        return None
