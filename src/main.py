@@ -25,8 +25,10 @@ from stats import monte_carlo_simulation, summarize_monte_carlo
 
 from indicators import ema, rsi, atr
 
+from visualizer import save_trade_chart
 import matplotlib.pyplot as plt
 import os
+
 def main():
     # ---- LOAD CONFIG ----
     data_cfg = CONFIG["data"]
@@ -147,23 +149,9 @@ def main():
         for k, v in mc_summary.items():
             print(k, round(v, 2))
 
-    
-    from visualizer import plot_candles, plot_trade_overlay
-
-# choose a trade to inspect
+    # choose a trade to inspect
     for i, t in enumerate(trades):
-        start = max(0, t.entry_index - 60)
-        end = min(len(candles), t.entry_index + 60)
-
-        fig, ax = plot_candles(candles, start=start, end=end)
-        plot_trade_overlay(ax, t, candles, start=start, end=end)
-
-        os.makedirs("outputs", exist_ok=True)
-        filepath = f"outputs/trade_{i}.png"
-        fig.savefig(filepath, dpi=150, bbox_inches="tight")
-        plt.close(fig)
-
-    print("All trade charts exported.")
+        save_trade_chart(t, candles, f"outputs/trade_{i}_entry{t.entry_index}.png", context=context, window=60)
 
 
 if __name__ == "__main__":

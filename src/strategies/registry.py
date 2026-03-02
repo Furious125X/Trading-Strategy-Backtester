@@ -1,8 +1,8 @@
-from strategies.ema_rsi_atr_strategy import EMARSIATRStrategy
+from strategies.breakout_retest import breakout_retest_strategy
 
 
 STRATEGY_REGISTRY = {
-    "ema_rsi_atr": EMARSIATRStrategy,
+    "breakout_retest": breakout_retest_strategy,
 }
 
 

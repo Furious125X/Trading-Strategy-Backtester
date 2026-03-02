@@ -5,7 +5,7 @@ CONFIG = {
     },
 
     "strategy": {
-        "name": "ema_rsi_atr",
+        "name": "breakout_retest",
         "params": {
             "ema_period": 50,
             "rsi_period": 14,
