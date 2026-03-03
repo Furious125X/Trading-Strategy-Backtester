@@ -111,11 +111,23 @@ def plot_candles(candles, start: int = 0, end: Optional[int] = None, ax=None):
     return fig, ax, start, end
 
 
-def plot_trade_overlay(ax, trade, candles, start: int = 0, end: Optional[int] = None, context=None):
+def plot_trade_overlay(
+    ax,
+    trade,
+    candles,
+    start: int = 0,
+    end: Optional[int] = None,
+    context=None,
+    current_index: Optional[int] = None):
     """
     Plot entry / stop / tp and annotate entry/exit candle on an existing axes.
     Draw only *relevant* levels: breakout level and nearest N levels (to avoid clutter).
     """
+    # If replay mode, do not draw trade before it exists
+    if current_index is not None:
+        if current_index < trade.entry_index:
+            return ax
+
     if end is None:
         end = len(candles)
 
@@ -126,9 +138,39 @@ def plot_trade_overlay(ax, trade, candles, start: int = 0, end: Optional[int] = 
     def idx_to_x(gidx):
         return gidx - start
 
-    # draw SL/TP across visible range only
-    ax.hlines(trade.stop_loss, -1, n + 1, color="red", linestyle=":", linewidth=1.0, zorder=1)
-    ax.hlines(trade.take_profit, -1, n + 1, color="green", linestyle=":", linewidth=1.0, zorder=1)
+    # draw ENTRY / SL / TP across visible range only
+    # Entry line
+    ax.hlines(
+        trade.entry_price,
+        -1,
+        n + 1,
+        color="blue",
+        linestyle="--",
+        linewidth=1.0,
+        zorder=1,
+    )
+
+    # Stop loss
+    ax.hlines(
+        trade.stop_loss,
+        -1,
+        n + 1,
+        color="red",
+        linestyle=":",
+        linewidth=1.0,
+        zorder=1,
+    )
+
+    # Take profit
+    ax.hlines(
+        trade.take_profit,
+        -1,
+        n + 1,
+        color="green",
+        linestyle=":",
+        linewidth=1.0,
+        zorder=1,
+    )
 
     # entry marker (if visible)
     if start <= trade.entry_index < end:
@@ -137,8 +179,44 @@ def plot_trade_overlay(ax, trade, candles, start: int = 0, end: Optional[int] = 
         ax.hlines(trade.entry_price, entry_x - 0.6, entry_x + 0.6, color="blue", linewidth=1.2, zorder=7)
         ax.text(entry_x, trade.entry_price, " ENTRY", color="blue", va="bottom", fontsize=9, zorder=8)
 
+    # ---- Confirmation Candle Highlight ----
+    if (
+        trade.confirmation_index is not None
+        and current_index is not None
+        and current_index >= trade.confirmation_index
+        and start <= trade.confirmation_index < end):
+        
+            conf_x = trade.confirmation_index - start
+
+            # Vertical highlight
+            ax.axvline(
+                conf_x,
+                color="orange",
+                linestyle="-",
+                linewidth=2.0,
+                alpha=0.6,
+                zorder=5,
+            )
+
+            # Label
+            ax.text(
+                conf_x,
+                candles[trade.confirmation_index].high,
+                " CONFIRM",
+                color="orange",
+                fontsize=8,
+                ha="center",
+                va="bottom",
+                zorder=9,
+            )
+
     # exit marker
-    if getattr(trade, "exit_index", None) is not None and start <= trade.exit_index < end:
+    if (
+    trade.exit_index is not None
+    and current_index is not None
+    and current_index >= trade.exit_index
+    and start <= trade.exit_index < end):
+
         exit_x = idx_to_x(trade.exit_index)
         ax.axvline(exit_x, color="purple", linestyle="--", linewidth=1.0, alpha=0.9, zorder=6)
         ax.hlines(trade.exit_price, exit_x - 0.6, exit_x + 0.6, color="purple", linewidth=1.2, zorder=7)
@@ -152,7 +230,8 @@ def plot_trade_overlay(ax, trade, candles, start: int = 0, end: Optional[int] = 
         relevant = []
 
         # breakout level if present and within slice price range
-        bl = getattr(trade, "tags", {}).get("breakout_level", None)
+        tags = trade.trade_tags or {}
+        bl = tags.get("breakout_level", None)
         if bl is not None:
             relevant.append(("breakout", bl))
 
@@ -206,7 +285,14 @@ def save_trade_chart(trade, candles, filename, context=None, window=60):
     end = min(len(candles), trade.entry_index + window)
 
     fig, ax, s, e = plot_candles(candles, start=start, end=end)
-    ax = plot_trade_overlay(ax, trade, candles, start=s, end=e, context=context)
+    ax = plot_trade_overlay(
+    ax,
+    trade,
+    candles,
+    start=s,
+    end=e,
+    context=context,
+    current_index=trade.exit_index or trade.entry_index)
 
     os.makedirs(os.path.dirname(filename) or ".", exist_ok=True)
     fig.savefig(filename, dpi=200, bbox_inches="tight")

@@ -89,15 +89,15 @@ class breakout_retest_strategy(Strategy):
         # 2) two-close confirmation: check the candle immediately after breakout
         if self.break_confirm_index is not None:
             if index == self.break_confirm_index + 1:
-                # second close must remain above level
                 if curr.close > (self.active_break_level or 0):
-                    # confirmed breakout — keep active_break_level and wait for retest
-                    # clear break_confirm_index to avoid re-checking
+                    # breakout confirmed
+                    self.confirmation_candle_index = index
                     self.break_confirm_index = None
                 else:
-                    # failed confirmation — reset
+                    # failed confirmation
                     self.active_break_level = None
                     self.break_confirm_index = None
+                    self.confirmation_candle_index = None
                     return False
 
         # 3) retest logic: require price touches level + strong rejection
@@ -186,6 +186,12 @@ class breakout_retest_strategy(Strategy):
         self.active_break_level = None
         self.break_confirm_index = None
 
+        confirmation_index = self.confirmation_candle_index
+        confirmation_time = None
+
+        if confirmation_index is not None:
+            confirmation_time = ctx.candles[confirmation_index].close_time
+
         trade = Trade(
             direction=Direction.LONG,
             entry_price=entry,
@@ -193,7 +199,14 @@ class breakout_retest_strategy(Strategy):
             take_profit=take_profit,
             entry_time=curr.close_time,
             entry_index=index,
+            confirmation_index=confirmation_index,
+            confirmation_time=confirmation_time,
         )
+
+        # reset internal state
+        self.active_break_level = None
+        self.break_confirm_index = None
+        self.confirmation_candle_index = None
 
         # tags for analysis
         ema_value = ctx.ema_fast[index]

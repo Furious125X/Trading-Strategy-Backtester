@@ -29,6 +29,9 @@ class Trade:
 
     entry_time: datetime
     entry_index: int
+    confirmation_index: int | None = None
+    confirmation_time: datetime | None = None
+    confirmation_candle_index: int | None = None
 
     exit_time: datetime | None = None
     exit_index: int | None = None
