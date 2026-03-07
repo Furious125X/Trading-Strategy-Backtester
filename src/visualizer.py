@@ -128,6 +128,30 @@ def plot_trade_overlay(
         if current_index < trade.entry_index:
             return ax
 
+    # ---- Risk / Reward Shading ----
+    if start <= trade.entry_index < end:
+        entry = trade.entry_price
+        stop = trade.stop_loss
+        target = trade.take_profit
+
+        # Risk zone (red)
+        ax.axhspan(
+            min(entry, stop),
+            max(entry, stop),
+            color="red",
+            alpha=0.08,
+            zorder=0,
+        )
+
+        # Reward zone (green)
+        ax.axhspan(
+            min(entry, target),
+            max(entry, target),
+            color="green",
+            alpha=0.08,
+            zorder=0,
+        )
+
     if end is None:
         end = len(candles)
 
@@ -173,7 +197,11 @@ def plot_trade_overlay(
     )
 
     # entry marker (if visible)
-    if start <= trade.entry_index < end:
+    if (
+    start <= trade.entry_index < end
+    and current_index is not None
+    and current_index >= trade.entry_index):
+    
         entry_x = idx_to_x(trade.entry_index)
         ax.axvline(entry_x, color="blue", linestyle="--", linewidth=1.0, alpha=0.9, zorder=6)
         ax.hlines(trade.entry_price, entry_x - 0.6, entry_x + 0.6, color="blue", linewidth=1.2, zorder=7)
@@ -272,6 +300,57 @@ def plot_trade_overlay(
                 # label breakout
                 x_label = (trade.entry_index - start) if (start <= trade.entry_index < end) else 0
                 ax.text(x_label, lvl, " BREAK", color=color, fontsize=8, zorder=9)
+
+    # ---- Trade Info Panel ----
+    if (
+        current_index is not None
+        and current_index >= trade.entry_index
+    ):
+        info_lines = []
+
+        info_lines.append(f"Direction: {trade.direction.value.upper()}")
+        info_lines.append(f"Entry: {trade.entry_price:.2f}")
+        info_lines.append(f"Stop: {trade.stop_loss:.2f}")
+        info_lines.append(f"Target: {trade.take_profit:.2f}")
+
+        # Live R multiple calculation
+        if current_index < len(candles):
+            price = candles[current_index].close
+            risk = abs(trade.entry_price - trade.stop_loss)
+
+            if risk > 0:
+                if trade.direction.value == "long":
+                    r_live = (price - trade.entry_price) / risk
+                else:
+                    r_live = (trade.entry_price - price) / risk
+
+                info_lines.append(f"Live R: {r_live:.2f}")
+
+        # Include tags if present
+        if getattr(trade, "tags", None):
+            for k, v in trade.tags.items():
+                try:
+                    info_lines.append(f"{k}: {v:.2f}")
+                except Exception:
+                    info_lines.append(f"{k}: {v}")
+
+        text = "\n".join(info_lines)
+
+        ax.text(
+            0.01,
+            0.99,
+            text,
+            transform=ax.transAxes,
+            fontsize=9,
+            verticalalignment="top",
+            bbox=dict(
+                boxstyle="round",
+                facecolor="black",
+                alpha=0.6,
+            ),
+            color="white",
+            zorder=20,
+        )
 
     return ax
 
