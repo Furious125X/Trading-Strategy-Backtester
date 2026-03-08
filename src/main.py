@@ -10,7 +10,6 @@ from equity import build_equity_curve
 from equity_plot import plot_equity_curve
 from timeframe import aggregate_candles
 from htf_bias import htf_trend_bias
-from indicators import ema
 from regime import detect_regime
 from levels import Levels
 from stats import tag_expectancy
@@ -28,6 +27,10 @@ from indicators import ema, rsi, atr
 from visualizer import save_trade_chart
 import matplotlib.pyplot as plt
 import os
+
+from performance import compute_performance
+
+from trade_analytics import analyze_trades, summarize_trade_analytics
 
 def main():
     # ---- LOAD CONFIG ----
@@ -128,6 +131,12 @@ def main():
         risk_per_trade=risk_cfg["risk_per_trade"],
     )
 
+    performance = compute_performance(trades, equity_curve, drawdowns)
+
+    print("\nPerformance Summary")
+    for section, data in performance.items():
+        print(section, data)
+
     if equity_curve:
         print(f"Final equity: {equity_curve[-1]:.2f}")
         print(f"Max drawdown: {max(drawdowns) * 100:.2f}%")
@@ -138,6 +147,11 @@ def main():
     print("\nExpectancy by Trade Type:")
     print(tag_expectancy(trades, "type"))
 
+    analytics = analyze_trades(trades, candles)
+    summary = summarize_trade_analytics(analytics)
+
+    print("\nTrade Analytics:")
+    print(summary)
 
     print("\nRunning Monte Carlo...")
 
