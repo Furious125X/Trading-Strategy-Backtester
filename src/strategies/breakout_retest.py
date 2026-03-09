@@ -11,6 +11,7 @@ class breakout_retest_strategy(Strategy):
         atr_period=14,
         atr_multiplier=1.5,
         risk_reward=2.0,
+        rsi_threshold=50
     ):
         super().__init__(context)
 
@@ -19,6 +20,7 @@ class breakout_retest_strategy(Strategy):
         self.atr_period = atr_period
         self.atr_multiplier = atr_multiplier
         self.risk_reward = risk_reward
+        self.rsi_threshold = rsi_threshold
 
         # state
         self.break_confirm_index = None
@@ -144,7 +146,7 @@ class breakout_retest_strategy(Strategy):
                     return False
 
                 # RSI confirmation optional (we require >50 here)
-                if not (rsi_value > 50):
+                if not (rsi_value > self.rsi_threshold):
                     return False
 
                 # momentum detector (one candle confirmation)

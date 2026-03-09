@@ -32,6 +32,16 @@ from performance import compute_performance
 
 from trade_analytics import analyze_trades, summarize_trade_analytics
 
+from analytic_plots import plot_mfe_mae, plot_duration, plot_r_distribution
+
+from optimizer import parameter_sweep, rank_results
+
+from walk_forward import walk_forward_test
+from exporter import export_summary, export_optimizer_results, export_walkforward
+
+import os
+os.makedirs("analytic_outputs", exist_ok=True)
+
 def main():
     # ---- LOAD CONFIG ----
     data_cfg = CONFIG["data"]
@@ -41,6 +51,11 @@ def main():
     # ---- LOAD DATA ----
     candles = load_candles(data_cfg["path"])
 
+    #-----SET PARAMETTERS FOR OPTIMIZATION----
+    param_grid = {
+    "risk_reward": [1.5, 2.0, 2.5, 3.0],
+    "rsi_threshold": [45, 50, 55],
+    }
     # ---- CONTEXT ----
     context = BacktestContext()
     context.momentum = MomentumDetector(candles)
@@ -152,6 +167,11 @@ def main():
 
     print("\nTrade Analytics:")
     print(summary)
+    export_summary(summary)
+
+    plot_mfe_mae(analytics)
+    plot_duration(analytics)
+    plot_r_distribution(analytics)
 
     print("\nRunning Monte Carlo...")
 
@@ -166,6 +186,42 @@ def main():
     # choose a trade to inspect
     for i, t in enumerate(trades):
         save_trade_chart(t, candles, f"outputs/trade_{i}_entry{t.entry_index}.png", context=context, window=60)
+
+    
+    print("\nRunning Parameter Sweep...")
+
+    results = parameter_sweep(
+        candles,
+        context,
+        strat_cfg["name"],
+        param_grid
+    )
+
+    top = rank_results(results)
+    export_optimizer_results(results)
+
+    print("\nTop Strategy Variants:")
+
+    for r in top:
+        print(r)
+
+    print("\nRunning Walk-Forward Test...")
+
+    wf_results = walk_forward_test(
+        candles,
+        context,
+        strat_cfg["name"],
+        param_grid,
+        train_size=5000,
+        test_size=1000
+    )
+
+    print("\nWalk-Forward Results:")
+
+    for r in wf_results:
+        print(r)
+
+    export_walkforward(wf_results)
 
 
 if __name__ == "__main__":
