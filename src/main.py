@@ -41,6 +41,8 @@ from exporter import export_summary, export_optimizer_results, export_walkforwar
 
 import os
 os.makedirs("analytic_outputs", exist_ok=True)
+from portfolio import run_portfolio
+
 
 def main():
     # ---- LOAD CONFIG ----
@@ -78,66 +80,27 @@ def main():
     context.htf_ema_slow = ema(context.htf_candles, 50)
 
 
-    # ---- STRATEGY ----
-    StrategyClass = get_strategy(strat_cfg["name"])
-    strategy = StrategyClass(context, **strat_cfg["params"])
+   # ---- PORTFOLIO STRATEGIES ----
+    portfolio_strategies = {
+        "breakout_retest": {
+            "risk_reward": 2.0,
+            "rsi_threshold": 50
+        }
+    }
 
-    trades = []
-    i = 0
+    print("\nRunning Portfolio Strategies...")
 
-    # ---- ENGINE ----
-    while i < len(candles):
+    portfolio_trades, strategy_trades = run_portfolio(
+        candles,
+        context,
+        portfolio_strategies
+    )
 
-        context.regime = detect_regime(
-            context.ema_fast,
-            context.ema_slow,
-            i
-        )
+    trades = portfolio_trades
 
-        htf_i = i // HTF_FACTOR
-        if htf_i >= len(context.htf_candles):
-            i += 1
-            continue
-
-        context.htf_bias = htf_trend_bias(
-            context.htf_candles,
-            context.htf_ema_fast,
-            context.htf_ema_slow,
-            htf_i
-        )
-
-        if context.htf_bias != "bullish":
-            i += 1
-            continue
-
-
-        trade = None
-
-        if strategy.should_enter(i):
-            trade = strategy.build_trade(i)
-
-        if trade:
-            trade.regime = context.regime
-            trade.htf_bias = context.htf_bias
-
-            result = simulate_trade(trade, candles[i + 1:])
-            trades.append(result)
-
-            if result.exit_index is not None:
-                i = result.exit_index + 1
-                continue
-
-
-        i += 1
-
-    # ---- STATS ----
-    print(basic_trade_stats(trades))
-    print(pnl_stats(trades))
-    print(r_multiple_stats(trades))
-
-    print("\nRegime Expectancy:")
-    for k, v in regime_expectancy(trades).items():
-        print(k, v)
+    # optional strategy breakdown
+    for name, t in strategy_trades.items():
+        print(f"{name} trades:", len(t))
 
     # ---- EQUITY ----
     equity_curve, drawdowns = build_equity_curve(
