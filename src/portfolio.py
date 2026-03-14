@@ -36,11 +36,16 @@ def run_strategy(candles, context, strategy_name, params):
 
             trade = strategy.build_trade(i)
 
+            # strategy may reject trade after deeper checks
+            if trade is None:
+                i += 1
+                continue
+
             result = simulate_trade(trade, candles[i+1:])
 
             trades.append(result)
 
-            if result.exit_index:
+            if result.exit_index is not None:
                 i = result.exit_index + 1
                 continue
 

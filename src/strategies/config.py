@@ -15,8 +15,18 @@ CONFIG = {
         },
     },
 
+    "strategy": {
+        "name": "ema_pullback_test",
+        "params": {
+            "risk_reward": 2.0,
+            "rsi_threshold": 50,
+        },
+    },
+
     "risk": {
         "starting_balance": 10_000,
         "risk_per_trade": 0.01,
     },
+
+
 }

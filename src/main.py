@@ -39,39 +39,33 @@ from optimizer import parameter_sweep, rank_results
 from walk_forward import walk_forward_test
 from exporter import export_summary, export_optimizer_results, export_walkforward
 
-import os
 os.makedirs("analytic_outputs", exist_ok=True)
+
 from portfolio import run_portfolio
 
+from trade_dataset import build_trade_dataset
 
 def main():
+
     # ---- LOAD CONFIG ----
     data_cfg = CONFIG["data"]
-    strat_cfg = CONFIG["strategy"]
     risk_cfg = CONFIG["risk"]
 
     # ---- LOAD DATA ----
     candles = load_candles(data_cfg["path"])
 
-    #-----SET PARAMETTERS FOR OPTIMIZATION----
-    param_grid = {
-    "risk_reward": [1.5, 2.0, 2.5, 3.0],
-    "rsi_threshold": [45, 50, 55],
-    }
     # ---- CONTEXT ----
     context = BacktestContext()
     context.momentum = MomentumDetector(candles)
     context.levels = Levels(candles)
 
-
-    # ---- LTF INDICATORS ----
     context.candles = candles
 
+    # ---- INDICATORS ----
     context.ema_fast = ema(candles, 20)
     context.ema_slow = ema(candles, 50)
     context.rsi = rsi(candles, 14)
     context.atr = atr(candles, 14)
-
 
     # ---- HTF ----
     HTF_FACTOR = data_cfg["htf_factor"]
@@ -79,14 +73,21 @@ def main():
     context.htf_ema_fast = ema(context.htf_candles, 20)
     context.htf_ema_slow = ema(context.htf_candles, 50)
 
-
-   # ---- PORTFOLIO STRATEGIES ----
+    # ---- PORTFOLIO STRATEGIES ----
     portfolio_strategies = {
         "breakout_retest": {
             "risk_reward": 2.0,
             "rsi_threshold": 50
         }
     }
+
+    #-----SET PARAMETTERS FOR OPTIMIZATION----
+    param_grid = {
+    "risk_reward": [1.5, 2.0, 2.5, 3.0],
+    "rsi_threshold": [45, 50, 55],
+    }
+
+    strategy_name = list(portfolio_strategies.keys())[0]
 
     print("\nRunning Portfolio Strategies...")
 
@@ -98,7 +99,6 @@ def main():
 
     trades = portfolio_trades
 
-    # optional strategy breakdown
     for name, t in strategy_trades.items():
         print(f"{name} trades:", len(t))
 
@@ -146,17 +146,24 @@ def main():
         for k, v in mc_summary.items():
             print(k, round(v, 2))
 
-    # choose a trade to inspect
     for i, t in enumerate(trades):
-        save_trade_chart(t, candles, f"outputs/trade_{i}_entry{t.entry_index}.png", context=context, window=60)
+        save_trade_chart(
+            t,
+            candles,
+            f"outputs/trade_{i}_entry{t.entry_index}.png",
+            context=context,
+            window=60
+        )
 
-    
+    # ---- EXPORT TRADE DATASET ----
+    build_trade_dataset(trades, candles, context)
+
     print("\nRunning Parameter Sweep...")
 
     results = parameter_sweep(
         candles,
         context,
-        strat_cfg["name"],
+        strategy_name,
         param_grid
     )
 
@@ -173,7 +180,7 @@ def main():
     wf_results = walk_forward_test(
         candles,
         context,
-        strat_cfg["name"],
+        strategy_name,
         param_grid,
         train_size=5000,
         test_size=1000
