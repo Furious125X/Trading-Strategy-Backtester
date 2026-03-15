@@ -45,7 +45,24 @@ from portfolio import run_portfolio
 
 from trade_dataset import build_trade_dataset
 
+from strategy_comparison import compare_strategies, print_strategy_comparison, export_strategy_comparison
+
+import argparse
+
 def main():
+
+    # ---- CLI ----
+
+    parser = argparse.ArgumentParser(description="Trading Strategy Backtester")
+
+    parser.add_argument(
+        "mode",
+        choices=["backtest", "optimize", "walkforward", "portfolio"],
+        help="Run mode"
+    )
+
+    args = parser.parse_args()
+    mode = args.mode
 
     # ---- LOAD CONFIG ----
     data_cfg = CONFIG["data"]
@@ -89,109 +106,132 @@ def main():
 
     strategy_name = list(portfolio_strategies.keys())[0]
 
-    print("\nRunning Portfolio Strategies...")
+    if mode in ["backtest", "portfolio"]:
 
-    portfolio_trades, strategy_trades = run_portfolio(
-        candles,
-        context,
-        portfolio_strategies
-    )
+        print("\nRunning Portfolio Strategies...")
 
-    trades = portfolio_trades
-
-    for name, t in strategy_trades.items():
-        print(f"{name} trades:", len(t))
-
-    # ---- EQUITY ----
-    equity_curve, drawdowns = build_equity_curve(
-        trades,
-        starting_balance=risk_cfg["starting_balance"],
-        risk_per_trade=risk_cfg["risk_per_trade"],
-    )
-
-    performance = compute_performance(trades, equity_curve, drawdowns)
-
-    print("\nPerformance Summary")
-    for section, data in performance.items():
-        print(section, data)
-
-    if equity_curve:
-        print(f"Final equity: {equity_curve[-1]:.2f}")
-        print(f"Max drawdown: {max(drawdowns) * 100:.2f}%")
-        plot_equity_curve(equity_curve, drawdowns)
-    else:
-        print("No trades taken — equity curve empty.")
-
-    print("\nExpectancy by Trade Type:")
-    print(tag_expectancy(trades, "type"))
-
-    analytics = analyze_trades(trades, candles)
-    summary = summarize_trade_analytics(analytics)
-
-    print("\nTrade Analytics:")
-    print(summary)
-    export_summary(summary)
-
-    plot_mfe_mae(analytics)
-    plot_duration(analytics)
-    plot_r_distribution(analytics)
-
-    print("\nRunning Monte Carlo...")
-
-    mc_results = monte_carlo_simulation(trades, runs=1000)
-    mc_summary = summarize_monte_carlo(mc_results)
-
-    if mc_summary:
-        print("\nMonte Carlo Summary:")
-        for k, v in mc_summary.items():
-            print(k, round(v, 2))
-
-    for i, t in enumerate(trades):
-        save_trade_chart(
-            t,
+        portfolio_trades, strategy_trades = run_portfolio(
             candles,
-            f"outputs/trade_{i}_entry{t.entry_index}.png",
-            context=context,
-            window=60
+            context,
+            portfolio_strategies
         )
 
-    # ---- EXPORT TRADE DATASET ----
-    build_trade_dataset(trades, candles, context)
+        trades = portfolio_trades
 
-    print("\nRunning Parameter Sweep...")
+        for name, t in strategy_trades.items():
+            print(f"{name} trades:", len(t))
 
-    results = parameter_sweep(
-        candles,
-        context,
-        strategy_name,
-        param_grid
-    )
+        # ---- STRATEGY COMPARISON ----
 
-    top = rank_results(results)
-    export_optimizer_results(results)
+        comparison_results = compare_strategies(strategy_trades, risk_cfg)
 
-    print("\nTop Strategy Variants:")
+        print_strategy_comparison(comparison_results)
 
-    for r in top:
-        print(r)
+        export_strategy_comparison(comparison_results)
 
-    print("\nRunning Walk-Forward Test...")
 
-    wf_results = walk_forward_test(
-        candles,
-        context,
-        strategy_name,
-        param_grid,
-        train_size=5000,
-        test_size=1000
-    )
+        # ---- EQUITY ----
+        equity_curve, drawdowns = build_equity_curve(
+            trades,
+            starting_balance=risk_cfg["starting_balance"],
+            risk_per_trade=risk_cfg["risk_per_trade"],
+        )
 
-    print("\nWalk-Forward Results:")
+        performance = compute_performance(trades, equity_curve, drawdowns)
 
-    for r in wf_results:
-        print(r)
+        print("\nPerformance Summary")
+        for section, data in performance.items():
+            print(section, data)
 
-    export_walkforward(wf_results)
+        if equity_curve:
+            print(f"Final equity: {equity_curve[-1]:.2f}")
+            print(f"Max drawdown: {max(drawdowns) * 100:.2f}%")
+            plot_equity_curve(equity_curve, drawdowns)
+        else:
+            print("No trades taken — equity curve empty.")
+
+        print("\nExpectancy by Trade Type:")
+        print(tag_expectancy(trades, "type"))
+
+        analytics = analyze_trades(trades, candles)
+        summary = summarize_trade_analytics(analytics)
+
+        print("\nTrade Analytics:")
+        print(summary)
+        export_summary(summary)
+
+        plot_mfe_mae(analytics)
+        plot_duration(analytics)
+        plot_r_distribution(analytics)
+
+        # ---- EXPORT TRADE DATASET ----
+        build_trade_dataset(trades, candles, context)
+
+        # ---- MONTE CARLO SIMULATION ----
+        print("\nRunning Monte Carlo...")
+
+        mc_results = monte_carlo_simulation(trades, runs=1000)
+        mc_summary = summarize_monte_carlo(mc_results)
+
+        if mc_summary:
+            print("\nMonte Carlo Summary:")
+            for k, v in mc_summary.items():
+                print(k, round(v, 2))
+
+        for i, t in enumerate(trades):
+            save_trade_chart(
+                t,
+                candles,
+                f"outputs/trade_{i}_entry{t.entry_index}.png",
+                context=context,
+                window=60
+            )
+
+
+    if mode == "optimize":
+
+        print("\nRunning Parameter Sweep...")
+
+        results = parameter_sweep(
+            candles,
+            context,
+            strategy_name,
+            param_grid
+        )
+
+        top = rank_results(results)
+
+        export_optimizer_results(results)
+
+        print("\nTop Strategy Variants:")
+
+        for r in top:
+            print(r)
+
+        return
+
+    
+    if mode == "walkforward":
+
+        print("\nRunning Walk-Forward Test...")
+
+        wf_results = walk_forward_test(
+            candles,
+            context,
+            strategy_name,
+            param_grid,
+            train_size=5000,
+            test_size=1000
+        )
+
+        print("\nWalk-Forward Results:")
+
+        for r in wf_results:
+            print(r)
+
+        export_walkforward(wf_results)
+
+        return
 
 
 if __name__ == "__main__":
