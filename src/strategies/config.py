@@ -1,6 +1,7 @@
 CONFIG = {
     "data": {
         "path": "data/ETHUSD_15.csv",
+        "timeframe" : 15,
         "htf_factor": 4,
     },
 

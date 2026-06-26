@@ -69,7 +69,7 @@ def main():
     risk_cfg = CONFIG["risk"]
 
     # ---- LOAD DATA ----
-    candles = load_candles(data_cfg["path"])
+    candles = load_candles(data_cfg["path"], data_cfg["timeframe"])
 
     # ---- CONTEXT ----
     context = BacktestContext()

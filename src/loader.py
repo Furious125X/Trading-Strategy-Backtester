@@ -2,9 +2,8 @@ import csv
 from datetime import datetime, timedelta
 from models import Candle
 
-TIMEFRAME_MINUTES = 15
 
-def load_candles(file_path):
+def load_candles(file_path, timeframe):
     candles = []
 
     with open(file_path, "r") as file:
@@ -14,7 +13,7 @@ def load_candles(file_path):
                 int(row["Open time"])
             )
 
-            close_time = open_time + timedelta(minutes=TIMEFRAME_MINUTES)
+            close_time = open_time + timedelta(minutes=timeframe)
 
             candles.append(
                 Candle(
