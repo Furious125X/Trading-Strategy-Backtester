@@ -3,16 +3,16 @@ from collections import defaultdict
 
 
 # -----------------------------
-# BASIC STATS (unchanged)
+# BASIC STATS
 # -----------------------------
 
 def basic_trade_stats(trades):
-    completed = [t for t in trades if t.result in ("win", "loss")]
 
-    total = len(completed)
-    wins = sum(1 for t in completed if t.result == "win")
-    losses = sum(1 for t in completed if t.result == "loss")
-
+    total = len(trades)
+    wins_list = [t for t in trades if getattr(t, "r_multiple", 0) > 0]
+    losses_list = [t for t in trades if getattr(t, "r_multiple", 0) <= 0]
+    wins = len(wins_list)
+    losses = len(losses_list)
     win_rate = wins / total if total > 0 else 0
     loss_rate = losses / total if total > 0 else 0
 
@@ -104,7 +104,7 @@ def r_multiple_stats(trades):
 
 
 # -----------------------------
-# REGIME ANALYSIS (FIXED)
+# REGIME ANALYSIS
 # -----------------------------
 
 def group_trades_by_regime(trades):
